@@ -1,0 +1,30 @@
+!SESSION 2025-04-28 14:39:01.201 -----------------------------------------------
+eclipse.buildId=Version 1.18.1
+java.version=21.0.3
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_US
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2025-04-28 14:39:31.607
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2025-04-28 14:39:31.611
+!MESSAGE Log4j2 initialized with config file C:\Users\wolfi\OneDrive\Documents\CDME\GoKart\GoKartDemoPrograms\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2025-04-28 14:39:37.270
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY com.st.stm32cube.ide.common.services 4 0 2025-04-28 14:48:54.642
+!MESSAGE Not able to get any active project build configuration.
+
+!ENTRY com.st.stm32cube.ide.common.services 4 0 2025-04-28 14:49:34.245
+!MESSAGE Not able to get any active project build configuration.
+
+!ENTRY com.st.stm32cube.ide.common.services 4 0 2025-04-28 14:49:52.483
+!MESSAGE Not able to get any active project build configuration.
+
+!ENTRY org.eclipse.ui 4 4 2025-04-28 15:16:31.651
+!MESSAGE Could not retrieve EHandlerService or ICommandService from context evaluation context fororg.eclipse.ui.edit.text.toggleBlockSelectionMode
+
+!ENTRY org.eclipse.ui 4 4 2025-04-28 15:16:31.652
+!MESSAGE Could not retrieve EHandlerService or ICommandService from context evaluation context fororg.eclipse.ui.edit.text.toMultiSelection
