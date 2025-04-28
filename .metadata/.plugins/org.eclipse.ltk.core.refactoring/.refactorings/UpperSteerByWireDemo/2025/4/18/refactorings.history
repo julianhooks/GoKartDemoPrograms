@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;LowerSteerByWireDemo/LowerSteerByWireDemo.ioc&apos; to &apos;UpperSteerByWireDemo.ioc&apos;" description="Rename resource &apos;LowerSteerByWireDemo.ioc&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="LowerSteerByWireDemo.ioc" name="UpperSteerByWireDemo.ioc" stamp="1745870802756" updateReferences="true"/>
+</session>
