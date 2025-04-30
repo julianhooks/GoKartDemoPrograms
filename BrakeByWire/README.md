@@ -20,7 +20,7 @@ The potentiometer comes in on pin **CN4-9 - PA4**  from J5.
 
 _Demonstrating position reading requires reading and communicating this voltage. Including a voltage to position function could be nice as well, but not required._
 #### Pressure Reading
-The [pressure sensor](https://www.digikey.com/en/products/detail/te-connectivity-measurement-specialties/M3021-000005-500PG/125131) is connected to the brake hydraulic line. The output of the sensor is read at **CN4-8** from J6.
+The [pressure sensor](https://www.digikey.com/en/products/detail/te-connectivity-measurement-specialties/M3021-000005-500PG/125131) is connected to the brake hydraulic line. The output of the sensor is read at **CN4-8 - PA5** from J6.
 
 _Demonstrating pressure reading requires requires reading and communicating this voltage. A voltage to pressure function could be nice but is not required._
 #### CAN Functionality
