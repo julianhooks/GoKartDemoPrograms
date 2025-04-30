@@ -490,18 +490,3 @@ java.lang.IllegalStateException: Call stack for thread main
 
 !ENTRY org.eclipse.cdt.core 1 0 2025-04-28 16:10:15.892
 !MESSAGE Indexed 'UpperSteerByWireDemo' (26 sources, 121 headers) in 5.43 sec: 13,422 declarations; 73,432 references; 3 unresolved inclusions; 46 syntax errors; 171 unresolved names (0.2%)
-!SESSION 2025-04-30 10:46:36.115 -----------------------------------------------
-eclipse.buildId=Version 1.18.1
-java.version=21.0.3
-java.vendor=Eclipse Adoptium
-BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_US
-Command-line arguments:  -os win32 -ws win32 -arch x86_64
-
-!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2025-04-30 10:46:48.506
-!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
-
-!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2025-04-30 10:46:48.507
-!MESSAGE Log4j2 initialized with config file C:\Users\wolfi\OneDrive\Documents\CDME\GoKart\GoKartDemoPrograms\.metadata\.log4j2.xml
-
-!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2025-04-30 10:46:57.705
-!MESSAGE Started RMI Server, listening on port 41337
