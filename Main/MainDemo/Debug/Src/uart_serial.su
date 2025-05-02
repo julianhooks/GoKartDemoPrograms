@@ -1,0 +1,3 @@
+../Src/uart_serial.c:6:6:uart_serial_start	16	static
+../Src/uart_serial.c:11:6:uart_serial_stop	16	static
+../Src/uart_serial.c:18:6:uart_serial_irq_handler	32	static

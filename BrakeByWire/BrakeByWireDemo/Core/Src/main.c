@@ -87,17 +87,9 @@ uint8_t CAN_RxData[4];
 double first_met = 1.0;
 
 double pressure_desired = 0.0;
-double pressure_measured = 0.0;
-
-double pressure_measured_avg = 0.0;
-double pressure_measured_sum = 0.0;
 
 float linearVoltage = 0.0f;
 float linearAvg = 0.0f;
-
-float pressureVoltage = 0.0f;
-float pressureAvg = 0.0f;
-float pressureValue = 0.0f;
 
 
 // uart print to serial terminal for debugging purpose
@@ -123,13 +115,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   // 5Hz = 200ms send out measured breaking pressure to can bus
-  if (htim == &htim16){
+  /*if (htim == &htim16){
 	  CAN_TxData[0] = (int)(pressure_measured_avg);
 	  HAL_CAN_AddTxMessage(&hcan1, &TxHeader, CAN_TxData, &TxMailbox);
 
 	  printf("brake pressure measured: %.2f PSI \r\n", pressure_measured_avg);
 	  printf("brake pressure desired: %.2f PSI \r\n", pressure_desired);
-  }
+  }*/
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	linearVoltage = HAL_ADC_GetValue(&hadc1) / 4095.0 * 3.3;
 }
 
 int testPin = 1;
@@ -141,6 +138,7 @@ int testPin = 1;
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -173,18 +171,15 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_Delay(500);
 
   HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+  HAL_ADC_Start_IT(&hadc1);
   HAL_Delay(500);
   // IMPORTANT: DO NOT MOVE THIS COUNTER TO GLOBAL VARIABLE
   // OR IT WILL BE RESET EVERY FEW LOOPS FOR NO REASON
   int count_max = 50;
   int loopCount = 0;
-
-  float pressureSum = 0.0f;
-  float pressureMax;
-  float pressureMin;
-  float pressureAbsMax = 500.0f;
 
   float linearSum = 0.0f;
   float linearMax = 2.61f;
@@ -196,39 +191,36 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  HAL_ADC_Start(&hadc1);
+	  /*HAL_ADC_Start(&hadc1);
 	  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 	  // reference adc reading [0-4095], reference voltage [0-3.3v]
 	  linearVoltage = HAL_ADC_GetValue(&hadc1) / 4095.0 * 3.3;
-	  pressureVoltage = HAL_ADC_GetValue(&hadc1) / 4095.0 * 3.3;
-	  HAL_ADC_Stop(&hadc1);
+	  HAL_ADC_Stop(&hadc1);*/
 
 	  //rolling average type stuff
 	  linearSum += linearVoltage;
-	  pressureSum += pressureVoltage;
 	  loopCount ++;
 
 	  if (loopCount >= count_max)
 	  {
 		  linearAvg = linearSum / count_max;
-		  pressureAvg = pressureSum / count_max;
 
 		  linearSum = 0.0f;
-		  pressureSum = 0.0f;
 
 		  loopCount = 0;
 	  }
 
 	  //read test pin for brake
-	  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET) { // Assuming HIGH is active
-	          // Button is pressed
+	  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET)
+	  {
+	      // Button is pressed
 		  testPin = 1;
-	          // Do something
-	      } else {
-	          // Button is not pressed
-	    	  testPin = 0;
-	          // Do something else
-	      }
+	  }
+	  else
+	  {
+		  // Button is not pressed
+	      testPin = 0;
+	   }
 
 	  //run motors if test pin is high
 	  //duty cycle (max is 1000) @ 2kHz
@@ -336,11 +328,11 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV64;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 2;
+  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
@@ -360,15 +352,6 @@ static void MX_ADC1_Init(void)
   sConfig.SingleDiff = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_10;
-  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();

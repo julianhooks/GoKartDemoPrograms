@@ -1,0 +1,6 @@
+../Src/app.c:17:13:joy_steer_to_steer	24	static
+../Src/app.c:27:13:joy_acc_to_acc	24	static
+../Src/app.c:40:13:joy_control_to_control	24	static
+../Src/app.c:60:13:convert_channels_to_commands	16	static
+../Src/app.c:66:13:handle_spektrum_msg	32	static
+../Src/app.c:72:6:app_run	24	static
