@@ -27,14 +27,15 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+/* This has to be replicated in every file to work properly */
 enum CANMessageID_t
 {
-	MAIN_CONTROLLER,
-	USER_INTERFACE,
-	THROTTLE_BY_WIRE,
-	BRAKE_BY_WIRE,
-	LOWER_STEER_BY_WIRE,
-	UPPER_STEER_BY_WIRE
+	MAIN_CONTROLLER = 0x00,
+	USER_INTERFACE = 0x01,
+	THROTTLE_BY_WIRE = 0x02,
+	BRAKE_BY_WIRE = 0x03,
+	LOWER_STEER_BY_WIRE = 0x04,
+	UPPER_STEER_BY_WIRE = 0x05
 };
 /* USER CODE END PTD */
 
@@ -164,18 +165,54 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  /* Start the CAN peripheral */
+  if (HAL_CAN_Start(&hcan1) != HAL_OK)
+  {
+    /* Start Error */
+	/* Clear uart msg buffer */
+
+	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+		uartDataBuffer[i] = 0;
+	}
+	strcpy(uartDataBuffer,"CAN1 Timeout Error.\n\r");
+	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
+  }
   while (1)
   {
-	/* Check for messages */
+	/*CANbus reconnect if disconnected*/
+    if (HAL_CAN_GetState(&hcan1) & HAL_CAN_STATE_RESET || HAL_CAN_GetError(&hcan1) != HAL_OK) {
+    	/* Clear errors */
+    	HAL_CAN_ResetError(&hcan1);
+
+    	/* Clear uart msg buffer */
+
+    	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+    		uartDataBuffer[i] = 0;
+    	}
+    	strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
+    	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
+    	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+        	/* Clear uart msg buffer */
+
+        	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+        		uartDataBuffer[i] = 0;
+        	}
+        	strcpy(uartDataBuffer,"Failed.\n\r");
+        	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
+    		//Error_Handler();
+    	}
+    }
+
+    /* Check for messages */
     if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CANRxMailbox) == 0){
-    	continue;
+       continue;
     }
 
     for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
   	  uartDataBuffer[i] = 0;
     }
 
-    /* Send welcome message */
+    /* Send packet received message */
     strcpy(uartDataBuffer,receivedPacketMsg);
     HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
 
@@ -301,6 +338,42 @@ static void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
+  /* Configure CAN filter */
+  sFilterConfig.FilterBank = 0;
+  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+  sFilterConfig.FilterIdHigh = 0x0000;
+  sFilterConfig.FilterIdLow = 0x0000;
+  sFilterConfig.FilterMaskIdHigh = 0x0000;
+  sFilterConfig.FilterMaskIdLow = 0x0000;
+  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+  sFilterConfig.FilterActivation = DISABLE;
+  sFilterConfig.SlaveStartFilterBank = 14;
+
+  if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
+  {
+    /* Start Error */
+    Error_Handler();
+  }
+
+  /* Activate CAN RX notification */
+  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
+  {
+    /* Notification Error */
+    Error_Handler();
+  }
+
+  /* Configure Transmission process */
+  TxHeader.StdId = MAIN_CONTROLLER;
+  TxHeader.ExtId = 0x01;
+  TxHeader.RTR = CAN_RTR_DATA;
+  TxHeader.IDE = CAN_ID_STD;
+  TxHeader.DLC = 2;
+  TxHeader.TransmitGlobalTime = DISABLE;
+
+  /* USER CODE END CAN1_Init 2 */
+
+
 
   /* USER CODE END CAN1_Init 2 */
 

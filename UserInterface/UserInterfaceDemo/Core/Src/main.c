@@ -26,11 +26,22 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+/* This has to be replicated in every file to work properly */
+enum CANMessageID_t
+{
+	MAIN_CONTROLLER = 0x00,
+	USER_INTERFACE = 0x01,
+	THROTTLE_BY_WIRE = 0x02,
+	BRAKE_BY_WIRE = 0x03,
+	LOWER_STEER_BY_WIRE = 0x04,
+	UPPER_STEER_BY_WIRE = 0x05
+};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+#define BUFFER_SIZE 256
 
 /* USER CODE END PD */
 
@@ -51,7 +62,7 @@ UART_HandleTypeDef huart2;
 CAN_TxHeaderTypeDef TxHeader;
 CAN_RxHeaderTypeDef RxHeader;
 uint8_t TxData[8];
-uint8_t RxData[8];
+uint8_t RxData[8] = "Hey!";
 uint32_t TxMailbox;
 
 uint32_t Timer;
@@ -61,6 +72,8 @@ uint8_t lastSwitch1;
 uint8_t currentSwitch2;
 uint8_t lastSwitch2;
 
+uint8_t uartDataBuffer[BUFFER_SIZE];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,7 +82,6 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_I2C1_Init(void);
-
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -116,6 +128,14 @@ int main(void)
   HD44780_Clear();
 
   Timer = 0;
+
+  /* Clear uart2 message buffer */
+  for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+	  uartDataBuffer[i] = 0;
+  }
+  strcpy(uartDataBuffer, "User Interface Connected!\n\r");
+  HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -123,19 +143,43 @@ int main(void)
   while (1)
   {
 	/* Once per second */
+
+
+	/*CANbus reconnect if disconnected*/
+    if (HAL_CAN_GetState(&hcan1) & HAL_CAN_STATE_RESET || HAL_CAN_GetError(&hcan1) != HAL_OK) {
+    	/* Clear errors */
+    	HAL_CAN_ResetError(&hcan1);
+
+    	/* Clear uart msg buffer */
+
+    	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+    		uartDataBuffer[i] = 0;
+    	}
+    	strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
+    	HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
+    	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+        	/* Clear uart msg buffer */
+
+        	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
+        		uartDataBuffer[i] = 0;
+        	}
+        	strcpy(uartDataBuffer,"Failed.\n\r");
+        	HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
+    	}
+    }
+
+    /* If there's a message, read it */
+    if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_ERROR) {
+    	//Error_Handler();
+    }
     if (HAL_GetTick() - Timer < 1000){
     	Timer = HAL_GetTick();
     	/* Send CAN packet */
     	if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK)
         {
           /* Transmission request Error */
-          Error_Handler();
+          //Error_Handler();
         }
-    }
-
-    /* If there's a message, read it */
-    if (HAL_CAN_GetRxMessage(hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_ERROR) {
-    	Error_Handler();
     }
     /* If message isn't empty, print to screen? */
 
@@ -145,6 +189,7 @@ int main(void)
 
     /* If state has changed */
     if (currentSwitch1 != lastSwitch1 || currentSwitch2 != lastSwitch2) {
+
       lastSwitch1 = currentSwitch1;
 	  lastSwitch2 = currentSwitch2;
 	  HD44780_Clear();
@@ -160,7 +205,7 @@ int main(void)
       }
 
   	  HD44780_SetCursor(0,1);
-  	  HD44780_PrintStr("Switch 2: ON/OFF");
+  	  HD44780_PrintStr("Switch 2: ");
 
   	  if (currentSwitch2) {
  		HD44780_PrintStr("On.");
@@ -245,7 +290,6 @@ void SystemClock_Config(void)
   */
 static void MX_CAN1_Init(void)
 {
-  /* The user additions to this function are pulled verbatim from the stm32 CAn networking example code. */
 
   /* USER CODE BEGIN CAN1_Init 0 */
   CAN_FilterTypeDef  sFilterConfig;
@@ -281,11 +325,10 @@ static void MX_CAN1_Init(void)
   sFilterConfig.FilterMaskIdHigh = 0x0000;
   sFilterConfig.FilterMaskIdLow = 0x0000;
   sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-  sFilterConfig.FilterActivation = ENABLE;
+  sFilterConfig.FilterActivation = DISABLE;
   sFilterConfig.SlaveStartFilterBank = 14;
 
-  /* Start the CAN peripheral */
-  if (HAL_CAN_Start(&hcan1) != HAL_OK)
+  if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
   {
     /* Start Error */
     Error_Handler();
@@ -299,7 +342,7 @@ static void MX_CAN1_Init(void)
   }
 
   /* Configure Transmission process */
-  TxHeader.StdId = 0x321;
+  TxHeader.StdId = USER_INTERFACE;
   TxHeader.ExtId = 0x01;
   TxHeader.RTR = CAN_RTR_DATA;
   TxHeader.IDE = CAN_ID_STD;
@@ -416,7 +459,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : PA3 PA4 */
   GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_4;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD3_Pin */
@@ -442,6 +485,7 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+  /* Still need to handle this */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
