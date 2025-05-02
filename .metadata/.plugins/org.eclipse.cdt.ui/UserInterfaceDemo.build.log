@@ -1,0 +1,47 @@
+15:04:24 **** Incremental Build of configuration Debug for project UserInterfaceDemo ****
+make -j12 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32L432xx -c -I../Core/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc -I../Drivers/STM32L4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32L4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:136:3: warning: implicit declaration of function 'strcpy' [-Wimplicit-function-declaration]
+  136 |   strcpy(uartDataBuffer, "User Interface Connected!\n\r");
+      |   ^~~~~~
+../Core/Src/main.c:25:1: note: include '<string.h>' or provide a declaration of 'strcpy'
+   24 | #include "liquidcrystal_i2c.h"
+  +++ |+#include <string.h>
+   25 | /* USER CODE END Includes */
+../Core/Src/main.c:136:3: warning: incompatible implicit declaration of built-in function 'strcpy' [-Wbuiltin-declaration-mismatch]
+  136 |   strcpy(uartDataBuffer, "User Interface Connected!\n\r");
+      |   ^~~~~~
+../Core/Src/main.c:136:3: note: include '<string.h>' or provide a declaration of 'strcpy'
+../Core/Src/main.c:136:10: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  136 |   strcpy(uartDataBuffer, "User Interface Connected!\n\r");
+      |          ^~~~~~~~~~~~~~
+      |          |
+      |          uint8_t * {aka unsigned char *}
+../Core/Src/main.c:136:10: note: expected 'char *' but argument is of type 'uint8_t *' {aka 'unsigned char *'}
+../Core/Src/main.c:158:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  158 |         strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                uint8_t * {aka unsigned char *}
+../Core/Src/main.c:158:16: note: expected 'char *' but argument is of type 'uint8_t *' {aka 'unsigned char *'}
+../Core/Src/main.c:166:24: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  166 |                 strcpy(uartDataBuffer,"Failed.\n\r");
+      |                        ^~~~~~~~~~~~~~
+      |                        |
+      |                        uint8_t * {aka unsigned char *}
+../Core/Src/main.c:166:24: note: expected 'char *' but argument is of type 'uint8_t *' {aka 'unsigned char *'}
+arm-none-eabi-gcc -o "UserInterfaceDemo.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\wolfi\OneDrive\Documents\CDME\GoKart\GoKartDemoPrograms\UserInterface\UserInterfaceDemo\STM32L432KCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="UserInterfaceDemo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: UserInterfaceDemo.elf
+ 
+arm-none-eabi-size  UserInterfaceDemo.elf 
+arm-none-eabi-objdump -h -S UserInterfaceDemo.elf  > "UserInterfaceDemo.list"
+   text	   data	    bss	    dec	    hex	filename
+  18504	     36	   2164	  20704	   50e0	UserInterfaceDemo.elf
+Finished building: default.size.stdout
+ 
+Finished building: UserInterfaceDemo.list
+ 
+
+15:04:26 Build Finished. 0 errors, 5 warnings. (took 2s.144ms)
+

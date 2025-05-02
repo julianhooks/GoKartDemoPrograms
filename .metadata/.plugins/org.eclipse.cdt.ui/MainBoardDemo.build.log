@@ -1,0 +1,195 @@
+14:52:29 **** Incremental Build of configuration Debug for project MainBoardDemo ****
+make -j12 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F439xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c:87:35: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   87 | const unsigned char* welcomeMsg = "Main board Connected!\n\r";
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:88:42: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   88 | const unsigned char* receivedPacketMsg = "Packet received.\n\r";
+      |                                          ^~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:89:30: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   89 | const unsigned char* UIMsg = "Packet received from User Interface.\n\r";
+      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:90:31: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   90 | const unsigned char* TBWMsg = "Packet received from Throttle by Wire.\n\r";
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:91:31: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   91 | const unsigned char* BBWMsg = "Packet received from Brake by Wire.\n\r";
+      |                               ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:92:32: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   92 | const unsigned char* LSBWMsg = "Packet received from Lower Steer by Wire.\n\r";
+      |                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:93:32: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   93 | const unsigned char* USBWMsg = "Packet received from Upper Steer by Wire.\n\r";
+      |                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c:94:33: warning: pointer targets in initialization of 'const unsigned char *' from 'char *' differ in signedness [-Wpointer-sign]
+   94 | const unsigned char* ErrorMsg = "Error: packet received from unknown sender.\n\r";
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+../Core/Src/main.c: In function 'main':
+../Core/Src/main.c:161:10: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  161 |   strcpy(uartDataBuffer,welcomeMsg);
+      |          ^~~~~~~~~~~~~~
+      |          |
+      |          unsigned char *
+In file included from ../Core/Src/main.c:21:
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:161:25: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  161 |   strcpy(uartDataBuffer,welcomeMsg);
+      |                         ^~~~~~~~~~
+      |                         |
+      |                         const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:177:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  177 |         strcpy(uartDataBuffer,"CAN1 Timeout Error.\n\r");
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:192:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  192 |         strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:200:24: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  200 |                 strcpy(uartDataBuffer,"Failed.\n\r");
+      |                        ^~~~~~~~~~~~~~
+      |                        |
+      |                        unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:216:12: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  216 |     strcpy(uartDataBuffer,receivedPacketMsg);
+      |            ^~~~~~~~~~~~~~
+      |            |
+      |            unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:216:27: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  216 |     strcpy(uartDataBuffer,receivedPacketMsg);
+      |                           ^~~~~~~~~~~~~~~~~
+      |                           |
+      |                           const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:232:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  232 |         strcpy(uartDataBuffer,UIMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:232:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  232 |         strcpy(uartDataBuffer,UIMsg);
+      |                               ^~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:236:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  236 |         strcpy(uartDataBuffer,TBWMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:236:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  236 |         strcpy(uartDataBuffer,TBWMsg);
+      |                               ^~~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:240:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  240 |         strcpy(uartDataBuffer,BBWMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:240:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  240 |         strcpy(uartDataBuffer,BBWMsg);
+      |                               ^~~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:244:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  244 |         strcpy(uartDataBuffer,LSBWMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:244:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  244 |         strcpy(uartDataBuffer,LSBWMsg);
+      |                               ^~~~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:247:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  247 |         strcpy(uartDataBuffer,USBWMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:247:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  247 |         strcpy(uartDataBuffer,USBWMsg);
+      |                               ^~~~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+../Core/Src/main.c:251:16: warning: pointer targets in passing argument 1 of 'strcpy' differ in signedness [-Wpointer-sign]
+  251 |         strcpy(uartDataBuffer,ErrorMsg);
+      |                ^~~~~~~~~~~~~~
+      |                |
+      |                unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:18: note: expected 'char * restrict' but argument is of type 'unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                  ^
+../Core/Src/main.c:251:31: warning: pointer targets in passing argument 2 of 'strcpy' differ in signedness [-Wpointer-sign]
+  251 |         strcpy(uartDataBuffer,ErrorMsg);
+      |                               ^~~~~~~~
+      |                               |
+      |                               const unsigned char *
+C:\ST\STM32CubeIDE_1.18.1\STM32CubeIDE\plugins\com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.13.3.rel1.win32_1.0.0.202411081344\tools\bin/../lib/gcc/arm-none-eabi/13.3.1/../../../../arm-none-eabi/include/string.h:38:36: note: expected 'const char * restrict' but argument is of type 'const unsigned char *'
+   38 | char    *strcpy (char *__restrict, const char *__restrict);
+      |                                    ^
+arm-none-eabi-gcc -o "MainBoardDemo.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\wolfi\OneDrive\Documents\CDME\GoKart\GoKartDemoPrograms\MainBoard\MainBoardDemo\STM32F439ZITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MainBoardDemo.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: MainBoardDemo.elf
+ 
+arm-none-eabi-size  MainBoardDemo.elf 
+arm-none-eabi-objdump -h -S MainBoardDemo.elf  > "MainBoardDemo.list"
+   text	   data	    bss	    dec	    hex	filename
+  15896	     44	   2788	  18728	   4928	MainBoardDemo.elf
+Finished building: default.size.stdout
+ 
+Finished building: MainBoardDemo.list
+ 
+
+14:52:31 Build Finished. 0 errors, 27 warnings. (took 1s.278ms)
+
