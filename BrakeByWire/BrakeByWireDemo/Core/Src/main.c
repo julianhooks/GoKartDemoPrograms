@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 
 #include "stdio.h"
+#include <stdbool.h>
 
 /* USER CODE END Includes */
 
@@ -124,9 +125,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
   }*/
 }
 
+double sum = 0.0;
+const int length = 40;
+double buffer[40] = {0};
+int index = 0;
+bool filled = false;
+
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
 	linearVoltage = HAL_ADC_GetValue(&hadc1) / 4095.0 * 3.3;
+
+	double newSample = linearVoltage;
+
+	// Remove oldest value
+	sum -= buffer[index];
+	// Add new value
+	buffer[index] = newSample;
+	sum += newSample;
+
+	// Advance index
+	index = (index + 1) % length;
+
+	// Compute average
+	int divisor = filled ? length : index;
+	if (index == 0) filled = true;
+
+	linearAvg = sum / (double)divisor;
 }
 
 int testPin = 1;
@@ -178,10 +202,7 @@ int main(void)
   HAL_Delay(500);
   // IMPORTANT: DO NOT MOVE THIS COUNTER TO GLOBAL VARIABLE
   // OR IT WILL BE RESET EVERY FEW LOOPS FOR NO REASON
-  int count_max = 50;
-  int loopCount = 0;
 
-  float linearSum = 0.0f;
   float linearMax = 2.61f;
   float linearMin = .68f;
 
@@ -197,18 +218,6 @@ int main(void)
 	  linearVoltage = HAL_ADC_GetValue(&hadc1) / 4095.0 * 3.3;
 	  HAL_ADC_Stop(&hadc1);*/
 
-	  //rolling average type stuff
-	  linearSum += linearVoltage;
-	  loopCount ++;
-
-	  if (loopCount >= count_max)
-	  {
-		  linearAvg = linearSum / count_max;
-
-		  linearSum = 0.0f;
-
-		  loopCount = 0;
-	  }
 
 	  //read test pin for brake
 	  if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET)

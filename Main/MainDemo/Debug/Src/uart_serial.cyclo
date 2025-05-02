@@ -1,3 +1,0 @@
-../Src/uart_serial.c:6:6:uart_serial_start	1
-../Src/uart_serial.c:11:6:uart_serial_stop	1
-../Src/uart_serial.c:18:6:uart_serial_irq_handler	6

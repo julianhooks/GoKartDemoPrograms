@@ -140,7 +140,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		  TIM1->CCR1 = -throttle_desired/2 + 150;
 	  }
 
-	  //with throttle, max is 3v, min is 0 -- scale this to 1000 - 2000 for PWM.
+	  //with throttle, max is 3v, min is 0 -- scale this to 100 - 200 for PWM.
 
 	  throttlePWM = (int)(100 + (throttleVoltage * 100 / 3));
 	  // send out speed control ppm

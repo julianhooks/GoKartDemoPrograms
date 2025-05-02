@@ -26,7 +26,7 @@
 #include "math.h"
 #include <stdio.h>
 #include "as5047p.h"
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,8 +44,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-CAN_HandleTypeDef hcan1;
-
 SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim1;
@@ -62,7 +60,6 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_CAN1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM6_Init(void);
@@ -75,31 +72,21 @@ static void MX_TIM1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-CAN_TxHeaderTypeDef TxHeader;
-CAN_RxHeaderTypeDef RxHeader;
-
-uint32_t TxMailbox;
-
-uint8_t CAN_TxData[4];
-uint8_t CAN_RxData[4];
-
-uint8_t vesc_packet[10];
-
 double error = 0.0;
 double error_prev = 0.0;
 
 double steerRaw = 0.0;
 double steer_measured = 0.0;
 double steer_desired = 0.0;
-const double steer_left = 286;
-const double steer_right = 277;
-const double steer_center = (steer_left + steer_right) / 2;
+double const steer_offset = -160;
+const double steer_left = 40;
+const double steer_right = 190;
+const double steer_center = (steer_right + steer_left) / 2;
 
-//full right is 1000, full left is 0, hold position is 500
-int dutyCycle = 0;
-int dutyMax = 1000;
-int dutyMin = 0;
+//full right is 200, full left is 100, hold position is 150
+int dutyCycle = 150;
+int dutyMax = 200;
+int dutyMin = 100;
 
 
 // uart print to serial terminal for debugging purpose
@@ -108,48 +95,52 @@ int _write(int file, char *ptr, int len){
 	return len;
 }
 
-// wrap angle between -180 and 180
-double wrap_to_pi(double angle){
-	double new_angle;
-
-	if (angle < -180.0){
-		new_angle = angle + 360.0;
-	} else if (angle > 180.0){
-		new_angle = angle - 360.0;
-	} else{
-		new_angle = angle;
-	}
-
-	return new_angle;
-}
-
 // read the current steering angle from the sensor
-int steerIterations;
-double steerSum;
+double steerSum = 0.0;
+const int steerLength = 55;
+double steerBuffer[55] = {0};
+int steerIndex = 0;
+bool steerFilled = false;
 void read_steer(){
 	as5047p_spi_comm_stats_t as5047p;
 
-	const int max = 50;
-
     if (spi_as5047p_blocking_read(&steerRaw, &as5047p) == HAL_OK) {
+    	steerRaw += steer_offset;
+    	if (steerRaw <0) steerRaw += 360;
+    	//rolling average
+    	double newSample = steerRaw;
 
-    	//"rolling" average
-    	steerSum += steerRaw;
+    	        // Remove oldest value
+    	        steerSum -= steerBuffer[steerIndex];
+    	        // Add new value
+    	        steerBuffer[steerIndex] = newSample;
+    	        steerSum += newSample;
 
-    	steerIterations ++;
+    	        // Advance index
+    	        steerIndex = (steerIndex + 1) % steerLength;
 
-    	if (steerIterations >= max)
-    	{
-    		steer_measured = steerSum / steerIterations;
+    	        // Compute average
+    	        int divisor = steerFilled ? steerLength : steerIndex;
+    	        if (steerIndex == 0) steerFilled = true;
 
-    		steerIterations = 0;
-    		steerSum = 0;
-    	}
+    	        steer_measured = steerSum / (double)divisor;
     }
 }
 
 // modified PID control for steering current
 void computeDutyCycle(){
+
+	if (steer_desired > steer_right || steer_desired < steer_left)
+	{
+		dutyCycle = (dutyMax + dutyMin) / 2;
+		return;
+	}
+	if (steer_measured > steer_right || steer_measured < steer_left)
+	{
+		dutyCycle = (dutyMax + dutyMin) / 2;
+		return;
+	}
+
     error = steer_desired - steer_measured;
     //positive = turn left, negative = right
 
@@ -157,15 +148,15 @@ void computeDutyCycle(){
     if (fabs(error) < 0.1)
     {
     	error = error_prev = 0.0;
-    	dutyCycle = 500;
+    	dutyCycle = (dutyMax + dutyMin) / 2;
     	return;
     }
 
-    double limit = fabs(steer_right - steer_left) * 0.6; //the minimum error value for which the duty cycle is maximized.
+    double limit = fabs(steer_right - steer_left) * 0.7 * 3; //the minimum error value for which the duty cycle is maximized.
     int m = (dutyMax + dutyMin)/2;
-    double minOffset = m / 3;
+    double minOffset = m / 25;
     double sign = error / fabs(error);
-    int duty = m -(error * m/(limit*1.5)) - sign*minOffset; //1.5 fixes the shift from minOffset
+    int duty = m -(error * m/(limit*1.136)) - sign*minOffset; //1.5 fixes the shift from minOffset
 
     dutyCycle = duty;
 
@@ -179,42 +170,6 @@ void computeDutyCycle(){
     }
 
 	error_prev = error;
-}
-
-
-void send_info(){
-	// send measured steering angle on canbus
-	CAN_TxData[0] = (int)(steer_measured);
-    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, CAN_TxData, &TxMailbox);
-
-    printf(
-  	  "steering angle desired: %.2f \r\n", steer_desired
-    );
-    printf(
-  	  "steering angle measured: %.2f \r\n", steer_measured
-    );
-    printf(
-  	  "steering angle error: %.2f \r\n", error
-    );
-    printf(
-  	  "duty cycle: %d\n \r\n", dutyCycle
-    );
-}
-
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1)
-{
-  if (HAL_CAN_GetRxMessage(hcan1, CAN_RX_FIFO0, &RxHeader, CAN_RxData) != HAL_OK)
-  {
-	  Error_Handler();
-  }
-
-  // 0x100 is the can device id of the main controller
-  if (RxHeader.StdId == 0x100)
-  {
-	  // recover raw steer data [-50 - 50]
-	  steer_desired = CAN_RxData[0];
-	  steer_desired = wrap_to_pi(steer_desired);
-  }
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
@@ -231,11 +186,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	// 50Hz - 20ms read current steering angle from AS5047 sensor
 	if (htim == &htim7) {
 		read_steer();
-	}
-
-	// 5Hz = 200ms send out measured steering angle to can bus
-	if (htim == &htim16){
-		send_info();
 	}
 }
 
@@ -270,7 +220,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_CAN1_Init();
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   MX_TIM6_Init();
@@ -317,8 +266,14 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_8;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_MSI;
+  RCC_OscInitStruct.PLL.PLLM = 1;
+  RCC_OscInitStruct.PLL.PLLN = 32;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -328,75 +283,15 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_MSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief CAN1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_CAN1_Init(void)
-{
-
-  /* USER CODE BEGIN CAN1_Init 0 */
-  TxHeader.DLC = 4;
-  TxHeader.ExtId = 0;
-  TxHeader.IDE = CAN_ID_STD;
-  TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.StdId = 0x103;
-  TxHeader.TransmitGlobalTime = DISABLE;
-
-  /* USER CODE END CAN1_Init 0 */
-
-  /* USER CODE BEGIN CAN1_Init 1 */
-
-  /* USER CODE END CAN1_Init 1 */
-  hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
-  hcan1.Init.Mode = CAN_MODE_NORMAL;
-  hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
-  hcan1.Init.TimeSeg2 = CAN_BS2_8TQ;
-  hcan1.Init.TimeTriggeredMode = DISABLE;
-  hcan1.Init.AutoBusOff = ENABLE;
-  hcan1.Init.AutoWakeUp = DISABLE;
-  hcan1.Init.AutoRetransmission = DISABLE;
-  hcan1.Init.ReceiveFifoLocked = DISABLE;
-  hcan1.Init.TransmitFifoPriority = DISABLE;
-  if (HAL_CAN_Init(&hcan1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN CAN1_Init 2 */
-
-  CAN_FilterTypeDef canfilterconfig;
-
-  canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
-  canfilterconfig.FilterBank = 10;  // which filter bank to use from the assigned ones
-  canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-  canfilterconfig.FilterIdHigh = 0;
-  canfilterconfig.FilterIdLow = 0x0000;
-  canfilterconfig.FilterMaskIdHigh = 0;
-  canfilterconfig.FilterMaskIdLow = 0x0000;
-  canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  canfilterconfig.SlaveStartFilterBank = 20;  // how many filters to assign to the CAN1 (master can)
-
-  HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
-  HAL_CAN_Start(&hcan1);
-  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
-
-  /* USER CODE END CAN1_Init 2 */
-
 }
 
 /**
@@ -422,7 +317,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_2EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -459,9 +354,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 319;
+  htim1.Init.Prescaler = 639;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 999;
+  htim1.Init.Period = 1999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -477,7 +372,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 500;
+  sConfigOC.Pulse = 100;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
