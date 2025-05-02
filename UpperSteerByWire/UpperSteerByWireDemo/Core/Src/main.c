@@ -48,6 +48,10 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
+int EncoderPinA = GPIO_PIN_5; // GPIO A
+int EncoderPinB = GPIO_PIN_6; // GPIO A
+int MotorEnable = GPIO_PIN_1; // GPIO B
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,7 +61,11 @@ static void MX_USART2_UART_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void TurnWheelLeft(int dutyCycle);
+void TurnWheelRight(int dutyCycle);
+void LockWheel(void);
+void CoastWheel(void);
+int ReadEncoder(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -102,7 +110,10 @@ int main(void)
   /* CAN1 init stuff (ID) */
 
   /* PWM stuff: set frequency, set default duty cycle */
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 
+  int wheelPosition;
   /* Encoder setup stuff */
 
   /* USER CODE END 2 */
@@ -111,20 +122,29 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /*Turn steering wheel left*/
-	  /*Count until end of steering range*/
-
-	  while(0) {}
-
 	  /*CAN ping*/
 
+	  wheelPosition = 0;
+
+	  /*Turn steering wheel left*/
+	  TurnWheelLeft(50);
+	  /*Count until end of steering range*/
+	  while(wheelPosition < 16 && wheelPosition > -16) {
+		  wheelPosition += ReadEncoder();
+	  }
+	  LockWheel();
+
+	  wheelPosition = 0;
+
 	  /*Turn steering wheel right*/
+	  TurnWheelRight(50);
 	  /*Count until other end of steering range*/
-	  while(0) {}
+	  while(wheelPosition < 16 && wheelPosition > -16) {
+		  wheelPosition += ReadEncoder();
+	  }
+	  LockWheel();
 
-	  /*Can ping*/
-
-	  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -248,9 +268,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  htim1.Init.Prescaler = 319;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 65535;
+  htim1.Init.Period = 99;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -376,6 +396,75 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/* Turns wheel left at given speed (tunable from 0 to 99) */
+void TurnWheelLeft(int dutyCycle)
+{
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, dutyCycle);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+	HAL_GPIO_WritePin(GPIOB, MotorEnable, GPIO_PIN_SET);
+}
+
+/* Turns wheel right at given speed (tunable from 0 to 99) */
+void TurnWheelRight(int dutyCycle)
+{
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, dutyCycle);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+	HAL_GPIO_WritePin(GPIOB, MotorEnable, GPIO_PIN_SET);
+}
+
+/* Turns on wheel braking */
+void LockWheel(void)
+{
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+	HAL_GPIO_WritePin(GPIOB, MotorEnable, GPIO_PIN_SET);
+}
+
+/* Lets motor coast */
+void CoastWheel(void) {
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+	HAL_GPIO_WritePin(GPIOB, MotorEnable, GPIO_PIN_RESET);
+}
+
+/*Quadrature encoder reader. We pass last state by reference since we have to update */
+int ReadEncoder(void) {
+
+	/*Get current state*/
+	int counterIncrement = 0;
+	static int lastState;
+	/*Current state has encoder values stored as a pair of bits (A)(B).
+	 * Below is some bit-math to get this working properly.*/
+	int currentState = 2*(GPIO_PIN_SET == HAL_GPIO_ReadPin(GPIOA, EncoderPinA))
+			+ (GPIO_PIN_SET == HAL_GPIO_ReadPin(GPIOA, EncoderPinB));
+
+	/*Compare states with a nasty switch case statement. we turn the last state and current state into
+	 * a set of 4 bits with the last state in the most significant position.*/
+	switch(((lastState)*4) + currentState) { //0000 0000 0000 (last state pair)(current state pair)
+		/*All legal state transitions for CCW rotation*/
+	    case 0b0010:
+		case 0b1011:
+		case 0b1101:
+		case 0b0100:
+			counterIncrement = 1;
+			break;
+		/*All legal state transitions for CW rotation*/
+		case 0b0001:
+		case 0b0111:
+		case 0b1110:
+		case 0b1000:
+			counterIncrement = -1;
+			break;
+		/*All illegal state transitions return 0*/
+		default:
+			//Since counter is initialized to 0, we don't need to change anything here
+	}
+	/*Update lastState*/
+	lastState = currentState;
+
+	/*Return counter increment*/
+	return counterIncrement;
+}
 
 /* USER CODE END 4 */
 

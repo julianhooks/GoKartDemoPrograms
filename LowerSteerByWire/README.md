@@ -5,7 +5,7 @@ This code should contain test/demonstrations which verify that all hardware on t
 2) Demonstrate ability to read the angle sensor
 3) Demonstrate ability to transmit/receive on the CAN bus
 #### Motor Control
-The motor is directly controlled by a VESC6 ESC, which the LSBW board communicates to via UART. Refer to VESC documentation and libraries for what should be sent and received.
+The motor is directly controlled by a VESC6 ESC, which the LSBW board communicates to via UART. Refer to VESC documentation and libraries for what should be sent and received (Docs)[https://vedder.se/2015/10/communicating-with-the-vesc-using-UART/] (example)[https://github.com/vedderb/bldc_uart_comm_stm32f4_discovery].
 
 **Pin to pin connections:**
 Tx - CN3-1 - PA9

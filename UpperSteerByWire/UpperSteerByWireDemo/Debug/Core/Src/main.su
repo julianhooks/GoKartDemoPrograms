@@ -1,0 +1,12 @@
+../Core/Src/main.c:80:5:main	16	static
+../Core/Src/main.c:158:6:SystemClock_Config	96	static
+../Core/Src/main.c:219:13:MX_CAN1_Init	8	static
+../Core/Src/main.c:256:13:MX_TIM1_Init	96	static
+../Core/Src/main.c:330:13:MX_USART2_UART_Init	8	static
+../Core/Src/main.c:365:13:MX_GPIO_Init	40	static
+../Core/Src/main.c:401:6:TurnWheelLeft	16	static
+../Core/Src/main.c:409:6:TurnWheelRight	16	static
+../Core/Src/main.c:417:6:LockWheel	8	static
+../Core/Src/main.c:425:6:CoastWheel	8	static
+../Core/Src/main.c:431:5:ReadEncoder	24	static
+../Core/Src/main.c:475:6:Error_Handler	4	static,ignoring_inline_asm
