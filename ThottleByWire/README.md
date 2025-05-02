@@ -12,7 +12,7 @@ Vesc 75/300 MKIV
 
 https://trampaboards.com/the-most-powerful-vesc-yet-a-vesc-with-300a-75v-perfect-for-electric-vehicles-electric-boats-electric-hydrofoils-industrial-applications-p-25831.html 
 
-uses Vesc tool to configure (see exe)
+uses Vesc tool to configure (see ZIP)
 https://vesc-project.com/vesc_tool 
 
 configured to read a standard RC PWM signal (50Hz with 1-2ms pulses)
