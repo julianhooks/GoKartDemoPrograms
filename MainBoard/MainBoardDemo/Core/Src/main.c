@@ -27,28 +27,26 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-/* This has to be replicated in every file to work properly */
-enum CANMessageID_t
-{
-	MAIN_CONTROLLER = 0x00,
-	USER_INTERFACE = 0x01,
-	THROTTLE_BY_WIRE = 0x02,
-	BRAKE_BY_WIRE = 0x03,
-	LOWER_STEER_BY_WIRE = 0x04,
-	UPPER_STEER_BY_WIRE = 0x05
-};
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
-#define BUFFER_SIZE 256
 
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+//used to encode and decode sensor data from one 16bit --> two 8-bit
+static inline void split_uint16(uint16_t v, uint8_t *hi, uint8_t *lo) {
+    *hi = (uint8_t)(v >> 8);
+    *lo = (uint8_t)(v & 0xFF);
+}
+
+static inline uint16_t combine_uint8(uint8_t hi, uint8_t lo) {
+    return ((uint16_t)hi << 8) | (uint16_t)lo;
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -61,56 +59,93 @@ CAN_HandleTypeDef hcan1;
 
 ETH_HandleTypeDef heth;
 
-I2C_HandleTypeDef hi2c1;
-
-UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
-UART_HandleTypeDef huart6;
+
+PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
 
-/* Necessary CAN variables */
-uint32_t CANRxMailbox;
-uint32_t CANTxMailbox;
-uint8_t CANRxData[8];
-uint8_t CANTxData[8];
-CAN_RxHeaderTypeDef RxHeader;
-CAN_TxHeaderTypeDef TxHeader;
-
-/* uart3 buffer */
-
-unsigned char uartDataBuffer[BUFFER_SIZE];
-
-/*uart3 messages */
-
-
-const unsigned char* welcomeMsg = "Main board Connected!\n\r";
-const unsigned char* receivedPacketMsg = "Packet received.\n\r";
-const unsigned char* UIMsg = "Packet received from User Interface.\n\r";
-const unsigned char* TBWMsg = "Packet received from Throttle by Wire.\n\r";
-const unsigned char* BBWMsg = "Packet received from Brake by Wire.\n\r";
-const unsigned char* LSBWMsg = "Packet received from Lower Steer by Wire.\n\r";
-const unsigned char* USBWMsg = "Packet received from Upper Steer by Wire.\n\r";
-const unsigned char* ErrorMsg = "Error: packet received from unknown sender.\n\r";
-
-
+//identifier ID for each board (every board should have the exact same values)
+//must be between 0-255
+static uint32_t MAIN = 100;
+static uint32_t TEST = 101;
+static uint32_t UI = 102;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_CAN1_Init(void);
 static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
-static void MX_CAN1_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_USART2_UART_Init(void);
-static void MX_USART6_UART_Init(void);
+static void MX_USB_OTG_FS_PCD_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef RxHeader;
+
+uint8_t TxData[8];
+uint8_t RxData[8];
+
+//data is formatted as followed (three 16-bit values)
+/*
+ *  [0] data 1 MSB
+ *  [1] data 1 LSB
+ *  [2] data 2 MSB
+ *  [3] data 2 LSB
+ *  [4] data 3 MSB
+ *  [5] data 3 LSB
+ *  [6]
+ *  [7] Identifier (such as 0x100 for MAIN)
+ *
+ *  not every packet will have all data filled, but identifier should always be allocated
+ *  16 bit data has big-endian formatting
+ */
+
+uint32_t TxMailbox[3];
+
+uint16_t sensorVal = 10306;
+uint16_t recovered = 0;
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
+
+	uint8_t TxID = RxData[7];
+
+	if (TxID == TEST)
+	{
+		HAL_GPIO_TogglePin(GPIOB, LD1_Pin);
+		recovered = combine_uint8(RxData[0], RxData[1]);
+	}
+	else if (TxID == UI)
+	{
+		HAL_GPIO_WritePin(GPIOB, LD2_Pin, RxData[0]);
+		HAL_GPIO_WritePin(GPIOB, LD3_Pin, RxData[2]);
+	}
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	int but = HAL_GPIO_ReadPin(USER_Btn_GPIO_Port,USER_Btn_Pin);
+	if (but == 1)
+	{
+	    TxData[7] = MAIN; //set identifier byte
+	    split_uint16(sensorVal, &TxData[0], &TxData[1]);
+
+		TxHeader.StdId = TEST;  // ID for Test board
+		HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox[0]);
+
+		TxHeader.StdId = UI;  // ID for UI board
+		HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox[1]);
+		but = 0;
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -143,121 +178,40 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_CAN1_Init();
   MX_ETH_Init();
   MX_USART3_UART_Init();
-  MX_CAN1_Init();
-  MX_I2C1_Init();
-  MX_USART2_UART_Init();
-  MX_USART6_UART_Init();
+  MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
+  HAL_GPIO_WritePin(GPIOB, LD3_Pin, GPIO_PIN_RESET);
 
-  /* Clear uart msg buffer */
+  HAL_CAN_Start(&hcan1);
 
-  for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-	  uartDataBuffer[i] = 0;
-  }
+      // Activate the notification
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 
-  /* Send welcome message */
-  strcpy(uartDataBuffer,welcomeMsg);
-  HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
+  //set header values (all these are the same except for ID)
+  TxHeader.DLC = 8;  // data length
+  TxHeader.ExtId = 0;
+  TxHeader.IDE = CAN_ID_STD;
+  TxHeader.RTR = CAN_RTR_DATA;
+  TxHeader.TransmitGlobalTime = DISABLE;
+      //HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  /* Start the CAN peripheral */
-  if (HAL_CAN_Start(&hcan1) != HAL_OK)
-  {
-    /* Start Error */
-	/* Clear uart msg buffer */
 
-	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-		uartDataBuffer[i] = 0;
-	}
-	strcpy(uartDataBuffer,"CAN1 Timeout Error.\n\r");
-	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
+  while(1)
+  {
+
   }
-  while (1)
-  {
-	/*CANbus reconnect if disconnected*/
-    if (HAL_CAN_GetState(&hcan1) & HAL_CAN_STATE_RESET || HAL_CAN_GetError(&hcan1) != HAL_OK) {
-    	/* Clear errors */
-    	HAL_CAN_ResetError(&hcan1);
-
-    	/* Clear uart msg buffer */
-
-    	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-    		uartDataBuffer[i] = 0;
-    	}
-    	strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
-    	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
-    	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
-        	/* Clear uart msg buffer */
-
-        	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-        		uartDataBuffer[i] = 0;
-        	}
-        	strcpy(uartDataBuffer,"Failed.\n\r");
-        	HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
-    		//Error_Handler();
-    	}
-    }
-
-    /* Check for messages */
-    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CANRxMailbox) == 0){
-       continue;
-    }
-
-    for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-  	  uartDataBuffer[i] = 0;
-    }
-
-    /* Send packet received message */
-    strcpy(uartDataBuffer,receivedPacketMsg);
-    HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
-
-    /* Get message */
-    HAL_CAN_GetRxMessage(&hcan1, CANRxMailbox, &RxHeader, CANRxData);
-
-    /* Clear uart3 message buffer */
-    for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-  	  uartDataBuffer[i] = 0;
-    }
-
-
-
-    /* Sort message by device ID. All devices use the standard identifier*/
-    switch (RxHeader.StdId) {
-    case USER_INTERFACE:
-    	strcpy(uartDataBuffer,UIMsg);
-    	/* Write packet information to usb 2.0 interface */
-    	break;
-    case THROTTLE_BY_WIRE:
-    	strcpy(uartDataBuffer,TBWMsg);
-    	/* Write packet information to usb 2.0 interface */
-    	break;
-    case BRAKE_BY_WIRE:
-    	strcpy(uartDataBuffer,BBWMsg);
-    	/* Write packet information to usb 2.0 interface */
-    	break;
-    case LOWER_STEER_BY_WIRE:
-    	strcpy(uartDataBuffer,LSBWMsg);
-    	break;
-    case UPPER_STEER_BY_WIRE:
-    	strcpy(uartDataBuffer,USBWMsg);
-    	break;
-    default:
-    	/* Unknown sender error message */
-    	strcpy(uartDataBuffer,ErrorMsg);
-    	break;
-    }
-	/* Send over serial to computer */
-    HAL_UART_Transmit(&huart3, uartDataBuffer, BUFFER_SIZE, 100);
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+
   /* USER CODE END 3 */
 }
 
@@ -315,17 +269,16 @@ static void MX_CAN1_Init(void)
 {
 
   /* USER CODE BEGIN CAN1_Init 0 */
-  CAN_FilterTypeDef  sFilterConfig;
   /* USER CODE END CAN1_Init 0 */
 
   /* USER CODE BEGIN CAN1_Init 1 */
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
+  hcan1.Init.Prescaler = 21;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_2TQ;
   hcan1.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
   hcan1.Init.AutoBusOff = DISABLE;
@@ -338,43 +291,21 @@ static void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
-  /* Configure CAN filter */
-  sFilterConfig.FilterBank = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-  sFilterConfig.FilterActivation = DISABLE;
-  sFilterConfig.SlaveStartFilterBank = 14;
+  CAN_FilterTypeDef canfilterconfig;
 
-  if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
-  {
-    /* Start Error */
-    Error_Handler();
-  }
+       canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+       canfilterconfig.FilterBank = 10;  // which filter bank to use from the assigned ones
+       canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+       canfilterconfig.FilterIdHigh = MAIN<<5;
+       canfilterconfig.FilterIdLow = 0x0000;
+       canfilterconfig.FilterMaskIdHigh = MAIN<<5;
+       canfilterconfig.FilterMaskIdLow = 0x0000;
+       canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+       canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+       canfilterconfig.SlaveStartFilterBank = 13;  // 13 - 27 are Slave (CAN2) or 0 - 12 are Master (CAN1)
+       	 	 	 	 	 	 	 	 	 	 	// useless if only 1 CAN1 (which this board has)
 
-  /* Activate CAN RX notification */
-  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
-  {
-    /* Notification Error */
-    Error_Handler();
-  }
-
-  /* Configure Transmission process */
-  TxHeader.StdId = MAIN_CONTROLLER;
-  TxHeader.ExtId = 0x01;
-  TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.IDE = CAN_ID_STD;
-  TxHeader.DLC = 2;
-  TxHeader.TransmitGlobalTime = DISABLE;
-
-  /* USER CODE END CAN1_Init 2 */
-
-
-
+       HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
   /* USER CODE END CAN1_Init 2 */
 
 }
@@ -429,87 +360,6 @@ static void MX_ETH_Init(void)
 }
 
 /**
-  * @brief I2C1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_I2C1_Init(void)
-{
-
-  /* USER CODE BEGIN I2C1_Init 0 */
-
-  /* USER CODE END I2C1_Init 0 */
-
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
-  hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-  hi2c1.Init.OwnAddress1 = 0;
-  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2 = 0;
-  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Analog filter
-  */
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /** Configure Digital filter
-  */
-  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN I2C1_Init 2 */
-
-  /* USER CODE END I2C1_Init 2 */
-
-}
-
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
-
-/**
   * @brief USART3 Initialization Function
   * @param None
   * @retval None
@@ -543,35 +393,37 @@ static void MX_USART3_UART_Init(void)
 }
 
 /**
-  * @brief USART6 Initialization Function
+  * @brief USB_OTG_FS Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART6_UART_Init(void)
+static void MX_USB_OTG_FS_PCD_Init(void)
 {
 
-  /* USER CODE BEGIN USART6_Init 0 */
+  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
 
-  /* USER CODE END USART6_Init 0 */
+  /* USER CODE END USB_OTG_FS_Init 0 */
 
-  /* USER CODE BEGIN USART6_Init 1 */
+  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
 
-  /* USER CODE END USART6_Init 1 */
-  huart6.Instance = USART6;
-  huart6.Init.BaudRate = 115200;
-  huart6.Init.WordLength = UART_WORDLENGTH_8B;
-  huart6.Init.StopBits = UART_STOPBITS_1;
-  huart6.Init.Parity = UART_PARITY_NONE;
-  huart6.Init.Mode = UART_MODE_TX_RX;
-  huart6.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart6.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart6) != HAL_OK)
+  /* USER CODE END USB_OTG_FS_Init 1 */
+  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+  hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
+  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_OTG_FS.Init.Sof_enable = ENABLE;
+  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = ENABLE;
+  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART6_Init 2 */
+  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
 
-  /* USER CODE END USART6_Init 2 */
+  /* USER CODE END USB_OTG_FS_Init 2 */
 
 }
 
@@ -627,19 +479,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(USB_OverCurrent_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : USB_SOF_Pin USB_ID_Pin USB_DM_Pin USB_DP_Pin */
-  GPIO_InitStruct.Pin = USB_SOF_Pin|USB_ID_Pin|USB_DM_Pin|USB_DP_Pin;
+  /*Configure GPIO pin : PD6 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-  GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : USB_VBUS_Pin */
-  GPIO_InitStruct.Pin = USB_VBUS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(USB_VBUS_GPIO_Port, &GPIO_InitStruct);
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

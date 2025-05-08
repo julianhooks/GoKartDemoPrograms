@@ -27,27 +27,24 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 /* This has to be replicated in every file to work properly */
-enum CANMessageID_t
-{
-	MAIN_CONTROLLER = 0x00,
-	USER_INTERFACE = 0x01,
-	THROTTLE_BY_WIRE = 0x02,
-	BRAKE_BY_WIRE = 0x03,
-	LOWER_STEER_BY_WIRE = 0x04,
-	UPPER_STEER_BY_WIRE = 0x05
-};
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
-#define BUFFER_SIZE 256
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+static inline void split_uint16(uint16_t v, uint8_t *hi, uint8_t *lo) {
+    *hi = (uint8_t)(v >> 8);
+    *lo = (uint8_t)(v & 0xFF);
+}
 
+static inline uint16_t combine_uint8(uint8_t hi, uint8_t lo) {
+    return ((uint16_t)hi << 8) | (uint16_t)lo;
+}
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -59,20 +56,17 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 
-CAN_TxHeaderTypeDef TxHeader;
-CAN_RxHeaderTypeDef RxHeader;
-uint8_t TxData[8];
-uint8_t RxData[8] = "Hey!";
-uint32_t TxMailbox;
+//identifier ID for each board (every board should have the exact same values)
+//must be between 0-255
+static uint32_t MAIN = 100;
+static uint32_t TEST = 101;
+static uint32_t UI = 102;
 
-uint32_t Timer;
-
-uint8_t currentSwitch1;
-uint8_t lastSwitch1;
-uint8_t currentSwitch2;
-uint8_t lastSwitch2;
-
-uint8_t uartDataBuffer[BUFFER_SIZE];
+//switch initial positions
+int currentSwitch1 = 0;
+int lastSwitch1 = 2;
+int currentSwitch2 = 0;
+int lastSwitch2 = 2;
 
 /* USER CODE END PV */
 
@@ -88,6 +82,48 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+CAN_TxHeaderTypeDef TxHeader;
+CAN_RxHeaderTypeDef RxHeader;
+
+uint8_t TxData[8];
+uint8_t RxData[8];
+
+//data is formatted as followed (three 16-bit values)
+/*
+ *  [0] data 1 MSB
+ *  [1] data 1 LSB
+ *  [2] data 2 MSB
+ *  [3] data 2 LSB
+ *  [4] data 3 MSB
+ *  [5] data 3 LSB
+ *  [6]
+ *  [7] Identifier (such as 0x100 for MAIN)
+ *
+ *  not every packet will have all data filled, but identifier should always be allocated
+ *  16 bit data has big-endian formatting
+ */
+
+
+uint32_t TxMailbox;
+
+uint16_t recovered = 0;
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+	HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData);
+
+	recovered = combine_uint8(RxData[0], RxData[1]);
+
+	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+
+	TxData[0] = currentSwitch1; //switch 1 position
+	TxData[2] = currentSwitch2; //switch 2 position
+
+
+	TxData[7] = UI; //set identifier
+    HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+}
 
 /* USER CODE END 0 */
 
@@ -127,14 +163,20 @@ int main(void)
   HD44780_Init(4);
   HD44780_Clear();
 
-  Timer = 0;
+  HAL_CAN_Start(&hcan1);
 
-  /* Clear uart2 message buffer */
-  for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-	  uartDataBuffer[i] = 0;
-  }
-  strcpy(uartDataBuffer, "User Interface Connected!\n\r");
-  HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
+      // Activate the notification
+      HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
+
+      //header to send data back to main board
+      TxHeader.DLC = 8;  // data length
+      TxHeader.ExtId = 0;
+      TxHeader.IDE = CAN_ID_STD;
+      TxHeader.RTR = CAN_RTR_DATA;
+      TxHeader.StdId = MAIN;  // ID of main board, because always sending to MAIN
+      TxHeader.TransmitGlobalTime = DISABLE;
+
 
   /* USER CODE END 2 */
 
@@ -142,53 +184,13 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	/* Once per second */
-
-
-	/*CANbus reconnect if disconnected*/
-    if (HAL_CAN_GetState(&hcan1) & HAL_CAN_STATE_RESET || HAL_CAN_GetError(&hcan1) != HAL_OK) {
-    	/* Clear errors */
-    	HAL_CAN_ResetError(&hcan1);
-
-    	/* Clear uart msg buffer */
-
-    	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-    		uartDataBuffer[i] = 0;
-    	}
-    	strcpy(uartDataBuffer,"Attempting CAN1 startup...\n\r");
-    	HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
-    	if (HAL_CAN_Start(&hcan1) != HAL_OK) {
-        	/* Clear uart msg buffer */
-
-        	for (uint16_t i = 0; i < BUFFER_SIZE; i++) {
-        		uartDataBuffer[i] = 0;
-        	}
-        	strcpy(uartDataBuffer,"Failed.\n\r");
-        	HAL_UART_Transmit(&huart2, uartDataBuffer, BUFFER_SIZE, 100);
-    	}
-    }
-
-    /* If there's a message, read it */
-    if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_ERROR) {
-    	//Error_Handler();
-    }
-    if (HAL_GetTick() - Timer < 1000){
-    	Timer = HAL_GetTick();
-    	/* Send CAN packet */
-    	if (HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox) != HAL_OK)
-        {
-          /* Transmission request Error */
-          //Error_Handler();
-        }
-    }
-    /* If message isn't empty, print to screen? */
-
     /* Read switches */
-    currentSwitch1 = (GPIO_PIN_SET == HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_3));
-    currentSwitch2 = (GPIO_PIN_SET == HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_4));
+    currentSwitch1 = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_3);
+    currentSwitch2 = HAL_GPIO_ReadPin(GPIOA,GPIO_PIN_4);
 
     /* If state has changed */
-    if (currentSwitch1 != lastSwitch1 || currentSwitch2 != lastSwitch2) {
+    if (currentSwitch1 != lastSwitch1 || currentSwitch2 != lastSwitch2)
+    {
 
       lastSwitch1 = currentSwitch1;
 	  lastSwitch2 = currentSwitch2;
@@ -197,20 +199,24 @@ int main(void)
   	  HD44780_SetCursor(0,0);
   	  HD44780_PrintStr("Switch 1: ");
 
-  	  if (currentSwitch1) {
+  	  if (currentSwitch1)
+  	  {
   		HD44780_PrintStr("On.");
   	  }
-  	  else {
+  	  else
+  	  {
     	HD44780_PrintStr("Off.");
       }
 
   	  HD44780_SetCursor(0,1);
   	  HD44780_PrintStr("Switch 2: ");
 
-  	  if (currentSwitch2) {
+  	  if (currentSwitch2)
+  	  {
  		HD44780_PrintStr("On.");
   	  }
- 	  else {
+ 	  else
+ 	  {
      	HD44780_PrintStr("Off.");
   	  }
     }
@@ -292,7 +298,6 @@ static void MX_CAN1_Init(void)
 {
 
   /* USER CODE BEGIN CAN1_Init 0 */
-  CAN_FilterTypeDef  sFilterConfig;
   /* USER CODE END CAN1_Init 0 */
 
   /* USER CODE BEGIN CAN1_Init 1 */
@@ -302,7 +307,7 @@ static void MX_CAN1_Init(void)
   hcan1.Init.Prescaler = 16;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
-  hcan1.Init.TimeSeg1 = CAN_BS1_1TQ;
+  hcan1.Init.TimeSeg1 = CAN_BS1_2TQ;
   hcan1.Init.TimeSeg2 = CAN_BS2_1TQ;
   hcan1.Init.TimeTriggeredMode = DISABLE;
   hcan1.Init.AutoBusOff = DISABLE;
@@ -315,40 +320,22 @@ static void MX_CAN1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN1_Init 2 */
+  CAN_FilterTypeDef canfilterconfig;
 
-  /* Configure CAN filter */
-  sFilterConfig.FilterBank = 0;
-  sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
-  sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
-  sFilterConfig.FilterIdHigh = 0x0000;
-  sFilterConfig.FilterIdLow = 0x0000;
-  sFilterConfig.FilterMaskIdHigh = 0x0000;
-  sFilterConfig.FilterMaskIdLow = 0x0000;
-  sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
-  sFilterConfig.FilterActivation = DISABLE;
-  sFilterConfig.SlaveStartFilterBank = 14;
+    //filter id is id of this board so that it receives the correct data
+       canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+       canfilterconfig.FilterBank = 10;  // which filter bank to use from the assigned ones
+       canfilterconfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+       canfilterconfig.FilterIdHigh = UI<<5;
+       canfilterconfig.FilterIdLow = 0x0000;
+       canfilterconfig.FilterMaskIdHigh = UI<<5;
+       canfilterconfig.FilterMaskIdLow = 0x0000;
+       canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+       canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+       canfilterconfig.SlaveStartFilterBank = 13;  // 13 - 27 are Slave (CAN2) or 0 - 12 are Master (CAN1)
+       	 	 	 	 	 	 	 	 	 	 	// useless if only 1 CAN1 (which this board has)
 
-  if (HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig) != HAL_OK)
-  {
-    /* Start Error */
-    Error_Handler();
-  }
-
-  /* Activate CAN RX notification */
-  if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK)
-  {
-    /* Notification Error */
-    Error_Handler();
-  }
-
-  /* Configure Transmission process */
-  TxHeader.StdId = USER_INTERFACE;
-  TxHeader.ExtId = 0x01;
-  TxHeader.RTR = CAN_RTR_DATA;
-  TxHeader.IDE = CAN_ID_STD;
-  TxHeader.DLC = 2;
-  TxHeader.TransmitGlobalTime = DISABLE;
-
+    HAL_CAN_ConfigFilter(&hcan1, &canfilterconfig);
   /* USER CODE END CAN1_Init 2 */
 
 }
